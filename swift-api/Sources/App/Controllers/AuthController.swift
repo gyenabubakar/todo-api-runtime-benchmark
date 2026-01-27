@@ -16,12 +16,12 @@ struct AuthController: Sendable {
         let input = try await request.decode(as: RegisterRequest.self, context: context)
 
         // Check if user already exists
-        if let _ = try await userRepository.findByEmail(input.email) {
+        if (try await userRepository.findByEmail(input.email)) != nil {
             throw HTTPError(.conflict, message: "Email already registered")
         }
 
         // Hash password
-        let passwordHash = try await Bcrypt.hash(input.password)
+        let passwordHash = Bcrypt.hash(input.password)
 
         // Create user
         let user = User(
