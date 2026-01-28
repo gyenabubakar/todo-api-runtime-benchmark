@@ -19,18 +19,25 @@ const getLatency = new Trend("get_latency");
 const updateLatency = new Trend("update_latency");
 const deleteLatency = new Trend("delete_latency");
 
+// Scale factor: 1 = 1k VUs, 2 = 2k VUs, 3 = 3k VUs, etc.
+// Duration multiplier: 1 = 1x, 2 = 1.5x, 3 = 2x, 4 = 2.5x, etc.
+const scale = parseInt(__ENV.SCALE) || 1;
+const durationMultiplier = 1 + (scale - 1) * 0.5;
+
+// Base durations in seconds
+const baseDurations = [30, 60, 60, 30, 60]; // warm-up, main, stress, peak, ramp-down
+const baseTargets = [100, 200, 500, 1000, 0]; // VU targets (as fraction of 1000)
+
+const stages = baseDurations.map((baseDuration, i) => ({
+  duration: `${Math.round(baseDuration * durationMultiplier)}s`,
+  target: baseTargets[i] * scale,
+}));
+
 export const options = {
-  // Total duration: 4.5 minutes
   scenarios: {
     default: {
       executor: "ramping-vus",
-      stages: [
-        { duration: "30s", target: 100 }, // Warm-up
-        { duration: "1m", target: 200 }, // Main load
-        { duration: "1m", target: 500 }, // Stress test
-        { duration: "30s", target: 1000 }, // Peak load
-        { duration: "1m", target: 0 }, // Ramp down
-      ],
+      stages,
       gracefulRampDown: "30s",
       gracefulStop: "30s",
     },

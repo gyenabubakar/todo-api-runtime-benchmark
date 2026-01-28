@@ -29,6 +29,8 @@ Each virtual user (VU) creates a unique account and performs the full CRUD cycle
 
 ## Load Profile
 
+Base load profile (scale 1 = 1000 VUs):
+
 | Stage | Duration | Virtual Users |
 |-------|----------|---------------|
 | Warm-up | 30s | 0 → 100 |
@@ -38,6 +40,16 @@ Each virtual user (VU) creates a unique account and performs the full CRUD cycle
 | Ramp down | 1m | 1000 → 0 |
 
 **Total duration:** ~4.5 minutes (including graceful stop)
+
+### Scaling
+
+Use the scale parameter to increase load:
+
+```bash
+./run.sh swift 2  # 2k VUs, 1.5x duration (~6.75 min)
+./run.sh swift 3  # 3k VUs, 2x duration (~9 min)
+./run.sh swift 4  # 4k VUs, 2.5x duration (~11.25 min)
+```
 
 ## Running Benchmarks
 
@@ -105,3 +117,4 @@ The benchmark generates two files in the `benchmark/` directory:
 ## Results
 
 - **1000 VUs (~4 minutes):** See [BENCHMARK-RESULTS_1000.md](./BENCHMARK-RESULTS_1000.md)
+- **2000 VUs (~6 minutes):** See [BENCHMARK-RESULTS_2000.md](./BENCHMARK-RESULTS_2000.md)

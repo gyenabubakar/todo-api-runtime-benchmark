@@ -113,15 +113,22 @@ build_apis() {
 run_benchmark() {
     local api_name=$1
     local api_url=$2
+    local scale=$3
     local output_file="$SCRIPT_DIR/results-${api_name}-$(date +%Y%m%d-%H%M%S).json"
+
+    # Calculate peak VUs and duration for display
+    local peak_vus=$((1000 * scale))
+    local duration_mult=$(echo "scale=1; 1 + ($scale - 1) * 0.5" | bc)
 
     print_header "Benchmarking $api_name API"
     echo "URL: $api_url"
+    echo "Scale: $scale (Peak: ${peak_vus} VUs, Duration: ${duration_mult}x)"
     echo "Output: $output_file"
     echo ""
 
     k6 run \
         --env API_URL="$api_url" \
+        --env SCALE="$scale" \
         --out json="$output_file" \
         --summary-trend-stats="avg,min,med,max,p(90),p(95),p(99)" \
         "$SCRIPT_DIR/benchmark.js"
@@ -151,6 +158,13 @@ trap cleanup EXIT
 
 main() {
     local target=${1:-both}
+    local scale=${2:-1}
+
+    # Validate scale
+    if ! [[ "$scale" =~ ^[0-9]+$ ]] || [[ "$scale" -lt 1 ]]; then
+        echo -e "${RED}Scale must be a positive integer (1 = 1000 VUs, 2 = 1500 VUs, 3 = 2000 VUs, etc.)${NC}"
+        exit 1
+    fi
 
     check_dependencies
     check_services
@@ -159,20 +173,25 @@ main() {
     case $target in
         go)
             start_stats_collection "todos-go-api"
-            run_benchmark "go" "http://localhost:$GO_PORT"
+            run_benchmark "go" "http://localhost:$GO_PORT" "$scale"
             ;;
         swift)
             start_stats_collection "todos-swift-api"
-            run_benchmark "swift" "http://localhost:$SWIFT_PORT"
+            run_benchmark "swift" "http://localhost:$SWIFT_PORT" "$scale"
             ;;
         both)
             start_stats_collection "todos-swift-api todos-go-api"
-            run_benchmark "go" "http://localhost:$GO_PORT"
+            run_benchmark "go" "http://localhost:$GO_PORT" "$scale"
             sleep 5
-            run_benchmark "swift" "http://localhost:$SWIFT_PORT"
+            run_benchmark "swift" "http://localhost:$SWIFT_PORT" "$scale"
             ;;
         *)
-            echo "Usage: $0 [go|swift|both]"
+            echo "Usage: $0 [go|swift|both] [scale]"
+            echo ""
+            echo "Scale: 1 = 1k VUs @ 1x duration (default)"
+            echo "       2 = 2k VUs @ 1.5x duration"
+            echo "       3 = 3k VUs @ 2x duration"
+            echo "       4 = 4k VUs @ 2.5x duration, etc."
             exit 1
             ;;
     esac
