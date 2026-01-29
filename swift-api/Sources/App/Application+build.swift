@@ -1,11 +1,11 @@
 import Foundation
 import Hummingbird
 import HummingbirdAuth
-import HummingbirdRedis
+import HummingbirdValkey
 import Logging
 import NIOCore
 import PostgresNIO
-import RediStack
+import Valkey
 
 func buildApplication(
     configuration: ApplicationConfiguration,
@@ -20,9 +20,9 @@ func buildApplication(
     let dbPassword = env.get("DB_PASSWORD") ?? "todos_password"
     let dbName = env.get("DB_NAME") ?? "hummingbird_todos"
 
-    // Redis configuration
-    let redisHost = env.get("REDIS_HOST") ?? "localhost"
-    let redisPort = Int(env.get("REDIS_PORT") ?? "6379") ?? 6379
+    // Valkey/Redis configuration
+    let valkeyHost = env.get("REDIS_HOST") ?? "localhost"
+    let valkeyPort = Int(env.get("REDIS_PORT") ?? "6379") ?? 6379
 
     // JWT configuration
     let jwtSecret = env.get("JWT_SECRET") ?? "your-super-secret-jwt-key-change-in-production"
@@ -42,17 +42,17 @@ func buildApplication(
     postgresConfig.options.maximumConnections = 25
     let postgresClient = PostgresClient(configuration: postgresConfig)
 
-    // Initialize Redis connection pool
-    let redisService = try RedisConnectionPoolService(
-        .init(hostname: redisHost, port: redisPort),
-        logger: Logger(label: "Redis")
+    // Initialize Valkey client
+    let valkeyClient = ValkeyClient(
+        .hostname(valkeyHost, port: valkeyPort),
+        logger: Logger(label: "Valkey")
     )
+    let persist = ValkeyPersistDriver(client: valkeyClient)
 
     // Initialize services
     let jwtService = await JWTService(secret: jwtSecret)
     let userRepository = UserPostgresRepository(client: postgresClient)
     let todoRepository = TodoPostgresRepository(client: postgresClient)
-    let cacheService = RedisCacheService(redis: redisService)
 
     // Build router
     let router = Router(context: AppRequestContext.self)
@@ -75,7 +75,7 @@ func buildApplication(
 
     TodoController(
         repository: todoRepository,
-        cache: cacheService,
+        cache: persist,
         baseURL: baseURL
     ).addRoutes(to: todoGroup)
 
@@ -87,7 +87,7 @@ func buildApplication(
     )
 
     // Add services
-    app.addServices(postgresClient, redisService)
+    app.addServices(postgresClient, valkeyClient)
 
     return app
 }

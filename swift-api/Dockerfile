@@ -1,5 +1,5 @@
 # Build stage
-FROM swift:6.0-noble AS builder
+FROM swift:6.2.3-noble AS builder
 
 WORKDIR /app
 

@@ -1,15 +1,16 @@
 import Foundation
 import Hummingbird
 import HummingbirdAuth
+import HummingbirdValkey
+import Valkey
 
-struct TodoController: Sendable {
+struct TodoController<Client: ValkeyClientProtocol & Sendable>: Sendable {
     let repository: TodoRepository
-    let cache: CacheService
+    let cache: ValkeyPersistDriver<Client>
     let baseURL: String
+    let cacheTTL: Duration = .seconds(300)
 
     func addRoutes(to group: RouterGroup<AppRequestContext>) {
-        // All todo routes require authentication
-        // Note: JWTAuthenticator should be added at the application level
         group.get(use: listTodos)
         group.post(use: createTodo)
         group.get(":id", use: getTodo)
@@ -28,10 +29,11 @@ struct TodoController: Sendable {
     @Sendable
     func listTodos(request: Request, context: AppRequestContext) async throws -> [TodoResponse] {
         let user = try getAuthenticatedUser(context: context)
+        let cacheKey = CacheKeys.todosKey(userId: user.id)
 
-        // Try to get from cache first
-        let cacheKey = RedisCacheService.todosKey(userId: user.id)
-        if let cached: [TodoResponse] = try? await cache.get(cacheKey) {
+        // Try cache first
+        if let cached: [TodoResponse] = try? await cache.get(key: cacheKey, as: [TodoResponse].self)
+        {
             return cached
         }
 
@@ -40,13 +42,15 @@ struct TodoController: Sendable {
         let response = todos.map { TodoResponse(from: $0, baseURL: baseURL) }
 
         // Cache the result
-        try? await cache.set(cacheKey, value: response, ttl: 300)
+        try? await cache.set(key: cacheKey, value: response, expires: cacheTTL)
 
         return response
     }
 
     @Sendable
-    func createTodo(request: Request, context: AppRequestContext) async throws -> EditedResponse<TodoResponse> {
+    func createTodo(request: Request, context: AppRequestContext) async throws -> EditedResponse<
+        TodoResponse
+    > {
         let user = try getAuthenticatedUser(context: context)
         let input = try await request.decode(as: CreateTodoRequest.self, context: context)
 
@@ -61,10 +65,9 @@ struct TodoController: Sendable {
         let createdTodo = try await repository.create(todo)
 
         // Invalidate cache
-        try? await cache.delete(RedisCacheService.todosKey(userId: user.id))
+        try? await cache.remove(key: CacheKeys.todosKey(userId: user.id))
 
         let response = TodoResponse(from: createdTodo, baseURL: baseURL)
-
         return EditedResponse(status: .created, response: response)
     }
 
@@ -73,13 +76,15 @@ struct TodoController: Sendable {
         let user = try getAuthenticatedUser(context: context)
 
         guard let idString = context.parameters.get("id"),
-              let id = UUID(uuidString: idString) else {
+            let id = UUID(uuidString: idString)
+        else {
             throw HTTPError(.badRequest, message: "Invalid todo ID")
         }
 
+        let cacheKey = CacheKeys.todoKey(id: id)
+
         // Try cache first
-        let cacheKey = RedisCacheService.todoKey(id: id)
-        if let cached: TodoResponse = try? await cache.get(cacheKey) {
+        if let cached: TodoResponse = try? await cache.get(key: cacheKey, as: TodoResponse.self) {
             return cached
         }
 
@@ -90,7 +95,7 @@ struct TodoController: Sendable {
         let response = TodoResponse(from: todo, baseURL: baseURL)
 
         // Cache the result
-        try? await cache.set(cacheKey, value: response, ttl: 300)
+        try? await cache.set(key: cacheKey, value: response, expires: cacheTTL)
 
         return response
     }
@@ -100,7 +105,8 @@ struct TodoController: Sendable {
         let user = try getAuthenticatedUser(context: context)
 
         guard let idString = context.parameters.get("id"),
-              let id = UUID(uuidString: idString) else {
+            let id = UUID(uuidString: idString)
+        else {
             throw HTTPError(.badRequest, message: "Invalid todo ID")
         }
 
@@ -110,7 +116,6 @@ struct TodoController: Sendable {
             throw HTTPError(.notFound, message: "Todo not found")
         }
 
-        // Update fields
         if let title = input.title {
             todo.title = title
         }
@@ -124,18 +129,21 @@ struct TodoController: Sendable {
         let updatedTodo = try await repository.update(todo)
 
         // Invalidate caches
-        try? await cache.delete(RedisCacheService.todosKey(userId: user.id))
-        try? await cache.delete(RedisCacheService.todoKey(id: id))
+        try? await cache.remove(key: CacheKeys.todosKey(userId: user.id))
+        try? await cache.remove(key: CacheKeys.todoKey(id: id))
 
         return TodoResponse(from: updatedTodo, baseURL: baseURL)
     }
 
     @Sendable
-    func deleteTodo(request: Request, context: AppRequestContext) async throws -> HTTPResponse.Status {
+    func deleteTodo(request: Request, context: AppRequestContext) async throws
+        -> HTTPResponse.Status
+    {
         let user = try getAuthenticatedUser(context: context)
 
         guard let idString = context.parameters.get("id"),
-              let id = UUID(uuidString: idString) else {
+            let id = UUID(uuidString: idString)
+        else {
             throw HTTPError(.badRequest, message: "Invalid todo ID")
         }
 
@@ -146,20 +154,22 @@ struct TodoController: Sendable {
         _ = try await repository.delete(id, userId: user.id)
 
         // Invalidate caches
-        try? await cache.delete(RedisCacheService.todosKey(userId: user.id))
-        try? await cache.delete(RedisCacheService.todoKey(id: id))
+        try? await cache.remove(key: CacheKeys.todosKey(userId: user.id))
+        try? await cache.remove(key: CacheKeys.todoKey(id: id))
 
         return .noContent
     }
 
     @Sendable
-    func deleteAllTodos(request: Request, context: AppRequestContext) async throws -> HTTPResponse.Status {
+    func deleteAllTodos(request: Request, context: AppRequestContext) async throws
+        -> HTTPResponse.Status
+    {
         let user = try getAuthenticatedUser(context: context)
 
         _ = try await repository.deleteAll(userId: user.id)
 
         // Invalidate cache
-        try? await cache.delete(RedisCacheService.todosKey(userId: user.id))
+        try? await cache.remove(key: CacheKeys.todosKey(userId: user.id))
 
         return .noContent
     }
