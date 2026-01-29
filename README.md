@@ -1,13 +1,13 @@
 # Todo API - Hummingbird (Swift) & Go
 
-A complete Todo API built with two different stacks - **Hummingbird (Swift)** and **Go (Gin)** - sharing the same PostgreSQL database and Redis cache. Both APIs have identical endpoints and authentication.
+A complete Todo API built with two different stacks - **Hummingbird (Swift)** and **Go (Gin)** - sharing the same PostgreSQL database and Valkey cache. Both APIs have identical endpoints and authentication.
 
 ## Features
 
 - JWT-based authentication (register/login)
 - CRUD operations for todos
 - PostgreSQL for data persistence
-- Redis for caching
+- Valkey for caching
 - Docker Compose for easy setup
 - Identical API endpoints on both stacks
 
@@ -15,7 +15,7 @@ A complete Todo API built with two different stacks - **Hummingbird (Swift)** an
 
 ```
 .
-├── docker-compose.yml      # PostgreSQL, Redis, and both APIs
+├── docker-compose.yml      # PostgreSQL, Valkey, and both APIs
 ├── init.sql                # Database schema initialization
 ├── .env.example            # Environment variables template
 ├── swift-api/              # Hummingbird (Swift) API
@@ -70,9 +70,9 @@ A complete Todo API built with two different stacks - **Hummingbird (Swift)** an
 
 ### Running Services Individually
 
-Start only the database and Redis:
+Start only the database and Valkey:
 ```bash
-docker-compose up -d postgres redis
+docker-compose up -d postgres valkey
 ```
 
 Then run either API locally:
@@ -215,8 +215,8 @@ curl -X DELETE http://localhost:8080/todos/550e8400-e29b-41d4-a716-446655440001 
 | `DB_USERNAME` | todos_user | PostgreSQL username |
 | `DB_PASSWORD` | todos_password | PostgreSQL password |
 | `DB_NAME` | hummingbird_todos | PostgreSQL database name |
-| `REDIS_HOST` | localhost | Redis host |
-| `REDIS_PORT` | 6379 | Redis port |
+| `CACHE_HOST` | localhost | Valkey host |
+| `CACHE_PORT` | 6379 | Valkey port |
 | `JWT_SECRET` | (default) | Secret key for JWT signing |
 | `BASE_URL` | http://localhost:8080 | Base URL for todo URLs |
 | `LOG_LEVEL` | info | Logging level |
@@ -226,15 +226,15 @@ curl -X DELETE http://localhost:8080/todos/550e8400-e29b-41d4-a716-446655440001 
 ### Swift API (Hummingbird)
 - **Hummingbird 2.5+** - Swift web framework
 - **PostgresNIO** - PostgreSQL driver
-- **HummingbirdRedis** - Redis integration
+- **hummingbird-valkey** - Valkey integration
 - **HummingbirdAuth** - Authentication middleware
 - **JWTKit** - JWT handling
 - **HummingbirdBcrypt** - Password hashing
 
 ### Go API (Gin)
 - **Gin 1.10+** - Go web framework
-- **pgx v5** - PostgreSQL driver with connection pooling
-- **go-redis v9** - Redis client
+- **pgxpool** - PostgreSQL connection pool (used directly)
+- **valkey-go** - Valkey client with automatic pipelining
 - **golang-jwt v5** - JWT handling
 - **bcrypt** - Password hashing
 
@@ -266,7 +266,7 @@ CREATE TABLE todos (
 
 ## Caching Strategy
 
-Both APIs implement cache-aside pattern with Redis:
+Both APIs implement cache-aside pattern with Valkey:
 - Todo lists are cached per user for 5 minutes
 - Individual todos are cached for 5 minutes
 - Cache is invalidated on create, update, and delete operations
