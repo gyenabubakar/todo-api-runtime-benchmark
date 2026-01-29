@@ -20,9 +20,9 @@ func buildApplication(
     let dbPassword = env.get("DB_PASSWORD") ?? "todos_password"
     let dbName = env.get("DB_NAME") ?? "hummingbird_todos"
 
-    // Valkey/Redis configuration
-    let valkeyHost = env.get("REDIS_HOST") ?? "localhost"
-    let valkeyPort = Int(env.get("REDIS_PORT") ?? "6379") ?? 6379
+    // Valkey configuration
+    let valkeyHost = env.get("CACHE_HOST") ?? "localhost"
+    let valkeyPort = Int(env.get("CACHE_PORT") ?? "6379") ?? 6379
 
     // JWT configuration
     let jwtSecret = env.get("JWT_SECRET") ?? "your-super-secret-jwt-key-change-in-production"
@@ -76,6 +76,7 @@ func buildApplication(
     TodoController(
         repository: todoRepository,
         cache: persist,
+        client: valkeyClient,
         baseURL: baseURL
     ).addRoutes(to: todoGroup)
 

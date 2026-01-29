@@ -17,9 +17,9 @@ type Config struct {
 	DBPassword string
 	DBName     string
 
-	// Redis
-	RedisHost string
-	RedisPort int
+	// Cache (Valkey)
+	CacheHost string
+	CachePort int
 
 	// JWT
 	JWTSecret string
@@ -37,8 +37,8 @@ func Load() *Config {
 		DBPassword: getEnv("DB_PASSWORD", "todos_password"),
 		DBName:     getEnv("DB_NAME", "hummingbird_todos"),
 
-		RedisHost: getEnv("REDIS_HOST", "localhost"),
-		RedisPort: getEnvAsInt("REDIS_PORT", 6379),
+		CacheHost: getEnv("CACHE_HOST", "localhost"),
+		CachePort: getEnvAsInt("CACHE_PORT", 6379),
 
 		JWTSecret: getEnv("JWT_SECRET", "your-super-secret-jwt-key-change-in-production"),
 	}

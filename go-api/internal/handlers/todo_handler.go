@@ -19,11 +19,11 @@ const cacheTTL = 5 * time.Minute
 
 type TodoHandler struct {
 	todoRepo *repository.TodoRepository
-	cache    *cache.RedisCache
+	cache    cache.CacheService
 	baseURL  string
 }
 
-func NewTodoHandler(todoRepo *repository.TodoRepository, cache *cache.RedisCache, baseURL string) *TodoHandler {
+func NewTodoHandler(todoRepo *repository.TodoRepository, cache cache.CacheService, baseURL string) *TodoHandler {
 	return &TodoHandler{
 		todoRepo: todoRepo,
 		cache:    cache,

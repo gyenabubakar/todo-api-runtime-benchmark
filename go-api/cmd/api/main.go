@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"log"
 	"net/http"
@@ -19,8 +18,8 @@ import (
 	"todos-api/internal/repository"
 
 	"github.com/gin-gonic/gin"
-	_ "github.com/jackc/pgx/v5/stdlib" // pgx driver for database/sql
-	"github.com/redis/go-redis/v9"
+	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/valkey-io/valkey-go"
 )
 
 func main() {
@@ -39,13 +38,13 @@ func main() {
 	}
 	defer dbPool.Close()
 
-	// Connect to Redis
-	redisClient := connectRedis(cfg)
-	defer redisClient.Close()
+	// Connect to Valkey
+	cacheClient := connectCache(cfg)
+	defer cacheClient.Close()
 
 	// Initialize services
 	jwtService := auth.NewJWTService(cfg.JWTSecret)
-	cacheService := cache.NewRedisCache(redisClient)
+	cacheService := cache.NewValkeyCache(cacheClient)
 	userRepo := repository.NewUserRepository(dbPool)
 	todoRepo := repository.NewTodoRepository(dbPool)
 
@@ -117,48 +116,55 @@ func main() {
 	log.Println("Server exited")
 }
 
-func connectDB(cfg *config.Config) (*sql.DB, error) {
+func connectDB(cfg *config.Config) (*pgxpool.Pool, error) {
 	connStr := fmt.Sprintf(
 		"postgres://%s:%s@%s:%d/%s?sslmode=disable",
 		cfg.DBUsername, cfg.DBPassword, cfg.DBHost, cfg.DBPort, cfg.DBName,
 	)
 
-	db, err := sql.Open("pgx", connStr)
+	poolConfig, err := pgxpool.ParseConfig(connStr)
 	if err != nil {
 		return nil, err
 	}
 
 	// Configure connection pool
-	db.SetMaxOpenConns(25)
-	db.SetMaxIdleConns(5)
-	db.SetConnMaxLifetime(time.Hour)
+	poolConfig.MaxConns = 25
+	poolConfig.MinConns = 5
+	poolConfig.MaxConnLifetime = time.Hour
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	// Test connection
-	if err := db.PingContext(ctx); err != nil {
+	pool, err := pgxpool.NewWithConfig(ctx, poolConfig)
+	if err != nil {
 		return nil, err
 	}
 
-	log.Println("Connected to PostgreSQL")
-	return db, nil
+	// Test connection
+	if err := pool.Ping(ctx); err != nil {
+		pool.Close()
+		return nil, err
+	}
+
+	log.Println("Connected to PostgreSQL (pgxpool)")
+	return pool, nil
 }
 
-func connectRedis(cfg *config.Config) *redis.Client {
-	client := redis.NewClient(&redis.Options{
-		Addr:         fmt.Sprintf("%s:%d", cfg.RedisHost, cfg.RedisPort),
-		PoolSize:     10,
-		MinIdleConns: 2,
+func connectCache(cfg *config.Config) valkey.Client {
+	client, err := valkey.NewClient(valkey.ClientOption{
+		InitAddress: []string{fmt.Sprintf("%s:%d", cfg.CacheHost, cfg.CachePort)},
 	})
+	if err != nil {
+		log.Fatalf("Failed to create Valkey client: %v", err)
+	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	if err := client.Ping(ctx).Err(); err != nil {
-		log.Printf("Warning: Redis connection failed: %v", err)
+	if err := client.Do(ctx, client.B().Ping().Build()).Error(); err != nil {
+		log.Printf("Warning: Valkey connection failed: %v", err)
 	} else {
-		log.Println("Connected to Redis")
+		log.Println("Connected to Valkey")
 	}
 
 	return client

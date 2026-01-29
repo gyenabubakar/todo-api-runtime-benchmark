@@ -2,21 +2,23 @@ package repository
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"time"
 
 	"todos-api/internal/models"
+
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 var ErrUserNotFound = errors.New("user not found")
 
 type UserRepository struct {
-	db *sql.DB
+	db *pgxpool.Pool
 }
 
-func NewUserRepository(db *sql.DB) *UserRepository {
+func NewUserRepository(db *pgxpool.Pool) *UserRepository {
 	return &UserRepository{db: db}
 }
 
@@ -25,7 +27,7 @@ func (r *UserRepository) Create(ctx context.Context, user *models.User) error {
 	user.CreatedAt = time.Now()
 	user.UpdatedAt = time.Now()
 
-	_, err := r.db.ExecContext(ctx,
+	_, err := r.db.Exec(ctx,
 		`INSERT INTO users (id, email, password_hash, name, created_at, updated_at)
 		 VALUES ($1, $2, $3, $4, $5, $6)`,
 		user.ID, user.Email, user.PasswordHash, user.Name, user.CreatedAt, user.UpdatedAt,
@@ -35,13 +37,13 @@ func (r *UserRepository) Create(ctx context.Context, user *models.User) error {
 
 func (r *UserRepository) FindByEmail(ctx context.Context, email string) (*models.User, error) {
 	user := &models.User{}
-	err := r.db.QueryRowContext(ctx,
+	err := r.db.QueryRow(ctx,
 		`SELECT id, email, password_hash, name, created_at, updated_at
 		 FROM users WHERE email = $1`,
 		email,
 	).Scan(&user.ID, &user.Email, &user.PasswordHash, &user.Name, &user.CreatedAt, &user.UpdatedAt)
 
-	if errors.Is(err, sql.ErrNoRows) {
+	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, ErrUserNotFound
 	}
 	if err != nil {
@@ -52,13 +54,13 @@ func (r *UserRepository) FindByEmail(ctx context.Context, email string) (*models
 
 func (r *UserRepository) FindByID(ctx context.Context, id uuid.UUID) (*models.User, error) {
 	user := &models.User{}
-	err := r.db.QueryRowContext(ctx,
+	err := r.db.QueryRow(ctx,
 		`SELECT id, email, password_hash, name, created_at, updated_at
 		 FROM users WHERE id = $1`,
 		id,
 	).Scan(&user.ID, &user.Email, &user.PasswordHash, &user.Name, &user.CreatedAt, &user.UpdatedAt)
 
-	if errors.Is(err, sql.ErrNoRows) {
+	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, ErrUserNotFound
 	}
 	if err != nil {

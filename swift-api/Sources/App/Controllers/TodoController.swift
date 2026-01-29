@@ -7,6 +7,7 @@ import Valkey
 struct TodoController<Client: ValkeyClientProtocol & Sendable>: Sendable {
     let repository: TodoRepository
     let cache: ValkeyPersistDriver<Client>
+    let client: Client
     let baseURL: String
     let cacheTTL: Duration = .seconds(300)
 
@@ -128,9 +129,11 @@ struct TodoController<Client: ValkeyClientProtocol & Sendable>: Sendable {
 
         let updatedTodo = try await repository.update(todo)
 
-        // Invalidate caches
-        try? await cache.remove(key: CacheKeys.todosKey(userId: user.id))
-        try? await cache.remove(key: CacheKeys.todoKey(id: id))
+        // Invalidate caches (batch delete)
+        _ = try? await client.del(keys: [
+            ValkeyKey(CacheKeys.todosKey(userId: user.id)),
+            ValkeyKey(CacheKeys.todoKey(id: id))
+        ])
 
         return TodoResponse(from: updatedTodo, baseURL: baseURL)
     }
@@ -153,9 +156,11 @@ struct TodoController<Client: ValkeyClientProtocol & Sendable>: Sendable {
 
         _ = try await repository.delete(id, userId: user.id)
 
-        // Invalidate caches
-        try? await cache.remove(key: CacheKeys.todosKey(userId: user.id))
-        try? await cache.remove(key: CacheKeys.todoKey(id: id))
+        // Invalidate caches (batch delete)
+        _ = try? await client.del(keys: [
+            ValkeyKey(CacheKeys.todosKey(userId: user.id)),
+            ValkeyKey(CacheKeys.todoKey(id: id))
+        ])
 
         return .noContent
     }

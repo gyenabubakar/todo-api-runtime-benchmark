@@ -24,17 +24,17 @@ services:
       timeout: 5s
       retries: 5
 
-  redis:
-    image: redis:7-alpine
-    container_name: todos-redis
+  valkey:
+    image: valkey/valkey:8-alpine
+    container_name: todos-valkey
     restart: unless-stopped
     ports:
-      - "${REDIS_PORT:-6379}:6379"
-    command: redis-server --maxmemory 100mb --maxmemory-policy allkeys-lfu
+      - "${CACHE_PORT:-6379}:6379"
+    command: valkey-server --maxmemory 100mb --maxmemory-policy allkeys-lfu
     volumes:
-      - redis_data:/data
+      - valkey_data:/data
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD", "valkey-cli", "ping"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -53,15 +53,15 @@ services:
       - DB_USERNAME=${DB_USERNAME:-todos_user}
       - DB_PASSWORD=${DB_PASSWORD:-todos_password}
       - DB_NAME=${DB_NAME:-hummingbird_todos}
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
+      - CACHE_HOST=valkey
+      - CACHE_PORT=6379
       - JWT_SECRET=${JWT_SECRET:-your-super-secret-jwt-key-change-in-production}
       - BASE_URL=${BASE_URL:-http://localhost:8080}
       - LOG_LEVEL=${LOG_LEVEL:-info}
     depends_on:
       postgres:
         condition: service_healthy
-      redis:
+      valkey:
         condition: service_healthy
 
   go-api:
@@ -78,17 +78,17 @@ services:
       - DB_USERNAME=${DB_USERNAME:-todos_user}
       - DB_PASSWORD=${DB_PASSWORD:-todos_password}
       - DB_NAME=${DB_NAME:-hummingbird_todos}
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
+      - CACHE_HOST=valkey
+      - CACHE_PORT=6379
       - JWT_SECRET=${JWT_SECRET:-your-super-secret-jwt-key-change-in-production}
       - BASE_URL=${BASE_URL:-http://localhost:8081}
       - PORT=8081
     depends_on:
       postgres:
         condition: service_healthy
-      redis:
+      valkey:
         condition: service_healthy
 
 volumes:
   postgres_data:
-  redis_data:
+  valkey_data:

@@ -147,3 +147,113 @@ See [BENCHMARK.md](./BENCHMARK.md) for instructions on running these benchmarks.
 ./benchmark/run.sh swift 2
 ./benchmark/run.sh go 2
 ```
+
+---
+
+# Results After Optimisations
+
+After the initial benchmarks, I made several changes to both APIs. The Go worker pool was removed because it hurt performance at extreme load. Here are the results after all optimisations.
+
+## Changes Made
+
+### Database
+- Added composite index for findAll sorting: `CREATE INDEX idx_todos_user_order ON todos(user_id, "order" NULLS LAST, created_at DESC)`
+- Go: Switched from database/sql to pgxpool (direct connection pooling)
+- Swift: Added RETURNING clause to INSERT/UPDATE queries
+
+### Cache
+- Switched from Redis 7 to Valkey 8
+- Swift: Switched from hummingbird-redis to hummingbird-valkey (valkey-swift)
+- Swift: Batch cache deletes (single DEL command with multiple keys)
+- Go: Switched from go-redis to valkey-go (automatic pipelining)
+
+## Updated Test Environment
+
+- **Cache:** Valkey 8 (instead of Redis 7)
+- Everything else remains the same
+
+## Swift Results (After Optimisations)
+
+```
+Success Rate: 96.81%
+Throughput: 706 req/s
+p95 Latency: 6.62s
+Iterations: 25,215
+```
+
+### Per-Endpoint Latency (p95)
+
+| Endpoint | Before | After | Change |
+|----------|--------|-------|--------|
+| Register | 10,001ms | 10,001ms | - |
+| Login | 9,199ms | 9,755ms | +6% |
+| List | 75ms | 55ms | -27% |
+| Create | 183ms | 209ms | +14% |
+| Get | 34ms | 22ms | -35% |
+| Update | 178ms | 180ms | +1% |
+| Delete | 172ms | 173ms | +1% |
+
+### Check Results
+
+| Check | Before | After |
+|-------|--------|-------|
+| register status 201 | 69% | 70% |
+| login status 200 | 96% | 95% |
+| list status 200 | 100% | 100% |
+| create status 201 | 100% | 100% |
+| get status 200 | 100% | 100% |
+| update status 200 | 100% | 100% |
+| delete status 204 | 100% | 100% |
+
+## Go Results (After Optimisations, No Worker Pool)
+
+```
+Success Rate: 99.27%
+Throughput: 660 req/s
+p95 Latency: 4.55s
+Iterations: 17,998
+```
+
+### Per-Endpoint Latency (p95)
+
+| Endpoint | Before | After | Change |
+|----------|--------|-------|--------|
+| Register | 10,001ms | 10,000ms | - |
+| Login | 5,530ms | 5,340ms | -3% |
+| List | 3,954ms | 4,048ms | +2% |
+| Create | 4,186ms | 4,287ms | +2% |
+| Get | 1,604ms | 1,687ms | +5% |
+| Update | 3,440ms | 3,926ms | +14% |
+| Delete | 3,450ms | 3,655ms | +6% |
+
+### Check Results
+
+| Check | Before | After |
+|-------|--------|-------|
+| register status 201 | 92% | 94% |
+| login status 200 | 99% | 99% |
+| list status 200 | 99% | 99% |
+| create status 201 | 99% | 99% |
+| get status 200 | 99% | 99% |
+| update status 200 | 99% | 99% |
+| delete status 204 | 99% | 99% |
+
+## Comparison (After Optimisations)
+
+| Metric | Swift | Go | Winner |
+|--------|-------|-----|--------|
+| Success Rate | 96.81% | 99.27% | Go |
+| Throughput | 706 req/s | 660 req/s | Swift |
+| p95 Latency | 6.62s | 4.55s | Go |
+| Register Success | 70% | 94% | Go |
+| CRUD p95 (avg) | 128ms | 3,520ms | Swift |
+
+## Summary of Changes
+
+The optimisations had mixed results:
+
+- **Swift Get latency improved 35%** (34ms to 22ms) - likely from batch cache deletes reducing round-trips
+- **Swift List latency improved 27%** (75ms to 55ms)
+- **Go Register success improved** (92% to 94%) - pgxpool reduces connection overhead
+- **Overall patterns unchanged** - Swift still faster on CRUD, Go still handles auth load better
+- **Bcrypt remains the bottleneck** - Both hit 10s timeout on register

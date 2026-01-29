@@ -16,13 +16,30 @@ struct TodoPostgresRepository: TodoRepository {
     private let logger = Logger(label: "TodoRepository")
 
     func create(_ todo: Todo) async throws -> Todo {
-        try await client.query(
+        let rows = try await client.query(
             """
-            INSERT INTO todos (id, user_id, title, "order", completed, url, created_at, updated_at)
-            VALUES (\(todo.id), \(todo.userId), \(todo.title), \(todo.order), \(todo.completed), \(todo.url), \(todo.createdAt), \(todo.updatedAt))
+            INSERT INTO todos (id, user_id, title, "order", completed, url)
+            VALUES (\(todo.id), \(todo.userId), \(todo.title), \(todo.order), \(todo.completed), \(todo.url))
+            RETURNING id, user_id, title, "order", completed, url, created_at, updated_at
             """,
             logger: logger
         )
+
+        for try await (id, uId, title, order, completed, url, createdAt, updatedAt) in rows.decode(
+            (UUID, UUID, String, Int?, Bool, String?, Date, Date).self,
+            context: .default
+        ) {
+            return Todo(
+                id: id,
+                userId: uId,
+                title: title,
+                order: order,
+                completed: completed,
+                url: url,
+                createdAt: createdAt,
+                updatedAt: updatedAt
+            )
+        }
         return todo
     }
 
@@ -87,7 +104,7 @@ struct TodoPostgresRepository: TodoRepository {
     }
 
     func update(_ todo: Todo) async throws -> Todo {
-        try await client.query(
+        let rows = try await client.query(
             """
             UPDATE todos
             SET title = \(todo.title),
@@ -96,9 +113,26 @@ struct TodoPostgresRepository: TodoRepository {
                 url = \(todo.url),
                 updated_at = CURRENT_TIMESTAMP
             WHERE id = \(todo.id) AND user_id = \(todo.userId)
+            RETURNING id, user_id, title, "order", completed, url, created_at, updated_at
             """,
             logger: logger
         )
+
+        for try await (id, uId, title, order, completed, url, createdAt, updatedAt) in rows.decode(
+            (UUID, UUID, String, Int?, Bool, String?, Date, Date).self,
+            context: .default
+        ) {
+            return Todo(
+                id: id,
+                userId: uId,
+                title: title,
+                order: order,
+                completed: completed,
+                url: url,
+                createdAt: createdAt,
+                updatedAt: updatedAt
+            )
+        }
         return todo
     }
 

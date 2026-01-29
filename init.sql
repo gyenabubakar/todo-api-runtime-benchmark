@@ -25,6 +25,7 @@ CREATE TABLE IF NOT EXISTS todos (
 
 -- Create indexes for better query performance
 CREATE INDEX IF NOT EXISTS idx_todos_user_id ON todos(user_id);
+CREATE INDEX IF NOT EXISTS idx_todos_user_order ON todos(user_id, "order" NULLS LAST, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_todos_completed ON todos(completed);
 CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
 
