@@ -1,6 +1,6 @@
-# Todo API - Hummingbird (Swift) & Go
+# Todo API - Hummingbird (Swift), Go, & Bun
 
-A complete Todo API built with two different stacks - **Hummingbird (Swift)** and **Go (Gin)** - sharing the same PostgreSQL database and Valkey cache. Both APIs have identical endpoints and authentication.
+A complete Todo API built with three different stacks - **Hummingbird (Swift)**, **Go (Gin)**, and **Bun (Elysia)** - sharing the same PostgreSQL database and Valkey cache. All APIs have identical endpoints and authentication.
 
 ## Features
 
@@ -9,15 +9,26 @@ A complete Todo API built with two different stacks - **Hummingbird (Swift)** an
 - PostgreSQL for data persistence
 - Valkey for caching
 - Docker Compose for easy setup
-- Identical API endpoints on both stacks
+- Identical API endpoints across all stacks
 
 ## Project Structure
 
 ```
 .
-├── docker-compose.yml      # PostgreSQL, Valkey, and both APIs
+├── docker-compose.yml      # PostgreSQL, Valkey, and all APIs
 ├── init.sql                # Database schema initialization
 ├── .env.example            # Environment variables template
+├── bun-api/                # Bun (Elysia) API
+│   ├── package.json
+│   ├── Dockerfile
+│   └── src/
+│       ├── app.ts
+│       ├── config.ts
+│       ├── db/
+│       ├── lib/
+│       ├── middleware/
+│       ├── repositories/
+│       └── routes/
 ├── swift-api/              # Hummingbird (Swift) API
 │   ├── Package.swift
 │   ├── Dockerfile
@@ -49,6 +60,7 @@ A complete Todo API built with two different stacks - **Hummingbird (Swift)** an
 ### Prerequisites
 
 - Docker & Docker Compose
+- (Optional) Bun 1.3.11+ for local Bun development
 - (Optional) Swift 6.0+ for local Swift development
 - (Optional) Go 1.23+ for local Go development
 
@@ -67,6 +79,7 @@ A complete Todo API built with two different stacks - **Hummingbird (Swift)** an
 3. The APIs will be available at:
    - **Swift API**: http://localhost:8080
    - **Go API**: http://localhost:8081
+   - **Bun API**: http://localhost:8082
 
 ### Running Services Individually
 
@@ -75,7 +88,7 @@ Start only the database and Valkey:
 docker-compose up -d postgres valkey
 ```
 
-Then run either API locally:
+Then run any API locally:
 
 **Swift API:**
 ```bash
@@ -89,9 +102,15 @@ cd go-api
 go run ./cmd/api
 ```
 
+**Bun API:**
+```bash
+cd bun-api
+bun run src/index.ts
+```
+
 ## API Endpoints
 
-Both APIs share the same endpoint structure:
+All APIs share the same endpoint structure:
 
 ### Authentication
 
@@ -139,8 +158,8 @@ Response:
     "id": "550e8400-e29b-41d4-a716-446655440000",
     "email": "user@example.com",
     "name": "John Doe",
-    "created_at": "2025-01-27T12:00:00Z",
-    "updated_at": "2025-01-27T12:00:00Z"
+    "createdAt": "2025-01-27T12:00:00Z",
+    "updatedAt": "2025-01-27T12:00:00Z"
   }
 }
 ```
@@ -176,8 +195,8 @@ Response:
   "order": 1,
   "completed": false,
   "url": "http://localhost:8080/todos/550e8400-e29b-41d4-a716-446655440001",
-  "created_at": "2025-01-27T12:00:00Z",
-  "updated_at": "2025-01-27T12:00:00Z"
+  "createdAt": "2025-01-27T12:00:00Z",
+  "updatedAt": "2025-01-27T12:00:00Z"
 }
 ```
 
@@ -219,6 +238,8 @@ curl -X DELETE http://localhost:8080/todos/550e8400-e29b-41d4-a716-446655440001 
 | `CACHE_PORT` | 6379 | Valkey port |
 | `JWT_SECRET` | (default) | Secret key for JWT signing |
 | `BASE_URL` | http://localhost:8080 | Base URL for todo URLs |
+| `BUN_BASE_URL` | http://localhost:8082 | Docker Compose base URL override for the Bun API |
+| `PORT` | 8082 | Bun API port |
 | `LOG_LEVEL` | info | Logging level |
 
 ## Technology Stack
@@ -237,6 +258,14 @@ curl -X DELETE http://localhost:8080/todos/550e8400-e29b-41d4-a716-446655440001 
 - **valkey-go** - Valkey client with automatic pipelining
 - **golang-jwt v5** - JWT handling
 - **bcrypt** - Password hashing
+
+### Bun API (Elysia)
+- **Bun 1.3.11+** - JavaScript runtime
+- **Elysia 1.4+** - Bun-optimized web framework
+- **Drizzle ORM** on **Bun SQL** - typed PostgreSQL access
+- **Bun Redis client** - Valkey integration
+- **@elysiajs/jwt** - JWT handling
+- **Bun.password** - bcrypt hashing
 
 ## Database Schema
 

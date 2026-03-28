@@ -1,12 +1,12 @@
 # Benchmark
 
-Load testing suite for comparing Swift (Hummingbird) and Go API performance using [k6](https://k6.io/).
+Load testing suite for comparing Swift (Hummingbird), Go (Gin), and Bun (Elysia) API performance using [k6](https://k6.io/).
 
 ## Prerequisites
 
 - [k6](https://k6.io/) - `brew install k6`
 - Docker and Docker Compose
-- Go and Swift toolchains (for dependency checks)
+- Bun, Go, and Swift toolchains (for dependency checks)
 
 ## What It Tests
 
@@ -58,7 +58,7 @@ For accurate isolated results, benchmark each API separately with a fresh databa
 ### Benchmark Swift API
 
 ```bash
-docker compose up -d postgres redis swift-api
+docker compose up -d postgres valkey swift-api
 cd benchmark
 ./run.sh swift
 ```
@@ -73,9 +73,25 @@ docker compose down -v
 ### Benchmark Go API
 
 ```bash
-docker compose up -d postgres redis go-api
+docker compose up -d postgres valkey go-api
 cd benchmark
 ./run.sh go
+```
+
+### Benchmark Bun API
+
+```bash
+docker compose up -d postgres valkey bun-api
+cd benchmark
+./run.sh bun
+```
+
+### Benchmark All APIs
+
+```bash
+docker compose up -d postgres valkey go-api swift-api bun-api
+cd benchmark
+./run.sh all
 ```
 
 Clean up:
@@ -116,5 +132,5 @@ The benchmark generates two files in the `benchmark/` directory:
 
 ## Results
 
-- **1000 VUs (~4 minutes):** See [BENCHMARK-RESULTS_1000.md](./BENCHMARK-RESULTS_1000.md)
-- **2000 VUs (~6 minutes):** See [BENCHMARK-RESULTS_2000.md](./BENCHMARK-RESULTS_2000.md)
+- **1000 VUs (~4 minutes):** See [BENCHMARK-RESULTS_1000.md](./BENCHMARK-RESULTS_1000.md) for the current Swift/Go baseline
+- **2000 VUs (~6 minutes):** See [BENCHMARK-RESULTS_2000.md](./BENCHMARK-RESULTS_2000.md) for the current Swift/Go baseline

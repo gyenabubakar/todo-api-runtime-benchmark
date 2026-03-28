@@ -14,6 +14,7 @@ PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 
 SWIFT_PORT=8080
 GO_PORT=8081
+BUN_PORT=8082
 
 print_header() {
     echo ""
@@ -31,6 +32,12 @@ check_dependencies() {
         exit 1
     fi
     echo -e "${GREEN}✓ k6 installed${NC}"
+
+    if ! command -v bun &> /dev/null; then
+        echo -e "${RED}bun not found${NC}"
+        exit 1
+    fi
+    echo -e "${GREEN}✓ bun installed${NC}"
 
     if ! command -v go &> /dev/null; then
         echo -e "${RED}go not found${NC}"
@@ -55,11 +62,11 @@ check_services() {
         echo -e "${GREEN}✓ PostgreSQL container running${NC}"
     fi
 
-    if ! docker ps --format '{{.Names}}' | grep -q 'todos-redis'; then
-        echo -e "${YELLOW}⚠ Redis container not running${NC}"
-        echo "  Start with: docker compose up -d redis"
+    if ! docker ps --format '{{.Names}}' | grep -q 'todos-valkey'; then
+        echo -e "${YELLOW}⚠ Valkey container not running${NC}"
+        echo "  Start with: docker compose up -d valkey"
     else
-        echo -e "${GREEN}✓ Redis container running${NC}"
+        echo -e "${GREEN}✓ Valkey container running${NC}"
     fi
 }
 
@@ -179,14 +186,26 @@ main() {
             start_stats_collection "todos-swift-api"
             run_benchmark "swift" "http://localhost:$SWIFT_PORT" "$scale"
             ;;
+        bun)
+            start_stats_collection "todos-bun-api"
+            run_benchmark "bun" "http://localhost:$BUN_PORT" "$scale"
+            ;;
         both)
             start_stats_collection "todos-swift-api todos-go-api"
             run_benchmark "go" "http://localhost:$GO_PORT" "$scale"
             sleep 5
             run_benchmark "swift" "http://localhost:$SWIFT_PORT" "$scale"
             ;;
+        all)
+            start_stats_collection "todos-go-api todos-swift-api todos-bun-api"
+            run_benchmark "go" "http://localhost:$GO_PORT" "$scale"
+            sleep 5
+            run_benchmark "swift" "http://localhost:$SWIFT_PORT" "$scale"
+            sleep 5
+            run_benchmark "bun" "http://localhost:$BUN_PORT" "$scale"
+            ;;
         *)
-            echo "Usage: $0 [go|swift|both] [scale]"
+            echo "Usage: $0 [go|swift|bun|both|all] [scale]"
             echo ""
             echo "Scale: 1 = 1k VUs @ 1x duration (default)"
             echo "       2 = 2k VUs @ 1.5x duration"
