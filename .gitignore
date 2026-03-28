@@ -16,6 +16,13 @@ swift-api/Package.resolved
 go-api/bin/
 go-api/vendor/
 
+# Bun
+bun-api/node_modules/
+bun-api/.cache/
+bun-api/.turbo/
+bun-api/dist/
+bun-api/coverage/
+
 # IDEs
 /.vscode/*
 !/.vscode/hummingbird.code-snippets
