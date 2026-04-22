@@ -19,18 +19,16 @@ const getLatency = new Trend("get_latency");
 const updateLatency = new Trend("update_latency");
 const deleteLatency = new Trend("delete_latency");
 
-// Scale factor: 1 = 1k VUs, 2 = 2k VUs, 3 = 3k VUs, etc.
-// Duration multiplier: 1 = 1x, 2 = 1.5x, 3 = 2x, 4 = 2.5x, etc.
-const scale = parseInt(__ENV.SCALE) || 1;
-const durationMultiplier = 1 + (scale - 1) * 0.5;
+const peakVUs = parseInt(__ENV.PEAK_VUS, 10) || 1000;
+const durationMultiplier = peakVUs <= 1000 ? 1 : 1 + (peakVUs / 1000 - 1) * 0.5;
 
 // Base durations in seconds
 const baseDurations = [30, 60, 60, 30, 60]; // warm-up, main, stress, peak, ramp-down
-const baseTargets = [100, 200, 500, 1000, 0]; // VU targets (as fraction of 1000)
+const baseTargets = [0.1, 0.2, 0.5, 1, 0];
 
 const stages = baseDurations.map((baseDuration, i) => ({
   duration: `${Math.round(baseDuration * durationMultiplier)}s`,
-  target: baseTargets[i] * scale,
+  target: Math.round(baseTargets[i] * peakVUs),
 }));
 
 export const options = {
@@ -49,6 +47,7 @@ export const options = {
 };
 
 const BASE_URL = __ENV.API_URL || "http://localhost:8080";
+const RESULT_PATH = __ENV.RESULT_PATH;
 
 const params = {
   headers: { "Content-Type": "application/json" },
@@ -231,4 +230,26 @@ export default function () {
 
   // Pause to simulate realistic user behavior
   sleep(3);
+}
+
+export function handleSummary(data) {
+  if (!RESULT_PATH) {
+    return {};
+  }
+
+  return {
+    [RESULT_PATH]: JSON.stringify(
+      {
+        schemaVersion: 1,
+        backend: __ENV.RESULT_BACKEND || "unknown",
+        label: __ENV.RESULT_LABEL || String(peakVUs),
+        peakVUs,
+        apiUrl: BASE_URL,
+        createdAt: __ENV.RESULT_CREATED_AT || new Date().toISOString(),
+        summary: data,
+      },
+      null,
+      2,
+    ),
+  };
 }

@@ -233,7 +233,7 @@ curl -X DELETE http://localhost:8080/todos/550e8400-e29b-41d4-a716-446655440001 
 | `DB_PORT` | 5432 | PostgreSQL port |
 | `DB_USERNAME` | todos_user | PostgreSQL username |
 | `DB_PASSWORD` | todos_password | PostgreSQL password |
-| `DB_NAME` | hummingbird_todos | PostgreSQL database name |
+| `DB_NAME` | todos_benchmark | PostgreSQL database name |
 | `CACHE_HOST` | localhost | Valkey host |
 | `CACHE_PORT` | 6379 | Valkey port |
 | `JWT_SECRET` | (default) | Secret key for JWT signing |

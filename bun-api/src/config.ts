@@ -35,7 +35,7 @@ export const config: AppConfig = {
   dbPort: getEnvAsInt("DB_PORT", 5432),
   dbUsername: getEnv("DB_USERNAME", "todos_user"),
   dbPassword: getEnv("DB_PASSWORD", "todos_password"),
-  dbName: getEnv("DB_NAME", "hummingbird_todos"),
+  dbName: getEnv("DB_NAME", "todos_benchmark"),
   cacheHost: getEnv("CACHE_HOST", "localhost"),
   cachePort: getEnvAsInt("CACHE_PORT", 6379),
   jwtSecret: getEnv("JWT_SECRET", "your-super-secret-jwt-key-change-in-production")

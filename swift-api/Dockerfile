@@ -20,7 +20,10 @@ RUN swift build -c release --static-swift-stdlib
 FROM ubuntu:noble
 
 # Install required runtime libraries
-RUN apt-get update && apt-get install -y \
+ENV DEBIAN_FRONTEND=noninteractive
+ENV TZ=Etc/UTC
+
+RUN apt-get update -o Acquire::Retries=5 && apt-get install -y --fix-missing \
     libcurl4 \
     libxml2 \
     ca-certificates \

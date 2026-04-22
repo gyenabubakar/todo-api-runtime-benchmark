@@ -35,7 +35,7 @@ func Load() *Config {
 		DBPort:     getEnvAsInt("DB_PORT", 5432),
 		DBUsername: getEnv("DB_USERNAME", "todos_user"),
 		DBPassword: getEnv("DB_PASSWORD", "todos_password"),
-		DBName:     getEnv("DB_NAME", "hummingbird_todos"),
+		DBName:     getEnv("DB_NAME", "todos_benchmark"),
 
 		CacheHost: getEnv("CACHE_HOST", "localhost"),
 		CachePort: getEnvAsInt("CACHE_PORT", 6379),

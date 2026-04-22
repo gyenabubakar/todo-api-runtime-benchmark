@@ -41,6 +41,11 @@ redis_data/
 
 benchmark/results-*
 benchmark/stats.csv
+_bench-results/
+bun-api/.env
+go-api/.env
+swift-api/.env
+_scripts/node_modules/
 
 chat-.md
 

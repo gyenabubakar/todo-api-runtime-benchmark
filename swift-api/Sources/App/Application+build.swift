@@ -18,7 +18,7 @@ func buildApplication(
     let dbPort = Int(env.get("DB_PORT") ?? "5432") ?? 5432
     let dbUsername = env.get("DB_USERNAME") ?? "todos_user"
     let dbPassword = env.get("DB_PASSWORD") ?? "todos_password"
-    let dbName = env.get("DB_NAME") ?? "hummingbird_todos"
+    let dbName = env.get("DB_NAME") ?? "todos_benchmark"
 
     // Valkey configuration
     let valkeyHost = env.get("CACHE_HOST") ?? "localhost"
